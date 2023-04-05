@@ -28,18 +28,8 @@ functions.region("europe-west3").runWith({enforceAppCheck: true})
 
     const offerNotes = data?.bookOffer?.notes;
 
-    const batch = admin.firestore().batch();
-    const pathUser = admin.firestore().collection("/users/" +
-    context.auth.uid + "/bookOffers").doc();
-    const pathBook = admin.firestore().collection("/books/" +
-    bookId + "/bookOffers").doc(pathUser.id);
-
-
-    batch.set(pathUser, {bookId: bookId,
-      bookState: bookState, notes: offerNotes});
-    batch.set(pathBook, {userId: context.auth.uid,
-      bookState: bookState, notes: offerNotes});
-
-
-    batch.commit();
+    admin.firestore().collection("/bookOffers")
+      .doc()
+      .create({bookId: bookId, userId: context.auth.uid,
+        bookState: bookState, notes: offerNotes});
   });
