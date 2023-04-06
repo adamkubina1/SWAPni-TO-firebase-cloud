@@ -50,13 +50,14 @@ functions.region("europe-west3").runWith({enforceAppCheck: true})
 
     const message = data?.message;
     const bookOffer = data?.bookOffer;
-
+    const counterOfferId = data?.counterOfferId;
+    const counterOffer = data?.counterOffer;
 
     admin.firestore().collection("/exchangeOffers")
       .doc()
-      .create({bookOfferId: bookOfferId,
+      .create({bookOfferId: bookOfferId, counterOfferId: counterOfferId,
         bookId: bookId, senderUserId: context.auth.uid,
         receiverUserId: targetUserId, message: message,
-        bookOffer: bookOffer,
+        bookOffer: bookOffer, counterOffer: counterOffer,
       });
   });

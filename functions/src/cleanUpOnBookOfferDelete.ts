@@ -12,7 +12,16 @@ functions.region("europe-west3").firestore
       .where("bookOfferId", "==", deletedDocId)
       .get();
 
+    const counterOffers = await admin.firestore()
+      .collection("exchangeOffers")
+      .where("counterOfferId", "==", deletedDocId)
+      .get();
+
     bookOffers.forEach((bookOffer) => {
+      batch.delete(bookOffer.ref);
+    });
+
+    counterOffers.forEach((bookOffer) => {
       batch.delete(bookOffer.ref);
     });
 
