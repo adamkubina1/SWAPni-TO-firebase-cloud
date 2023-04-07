@@ -7,6 +7,7 @@ import {cleanUpOnBookOfferDelete} from "./cleanUpOnBookOfferDelete";
 import {createBookOffer} from "./createBookOffer";
 import {createExchangeOffer} from "./createExchangeOffer";
 import {createUserDocumentOnSignUp} from "./createUserDocumentOnSignUp";
+import {updateUserReviewScore} from "./updateUserReviewScore";
 
 admin.initializeApp(functions.config().firebase);
 
@@ -16,5 +17,6 @@ export {
     createExchangeOffer,
     cleanUpOnBookOfferDelete,
     acceptExchangeOffer,
+    updateUserReviewScore,
 };
 
