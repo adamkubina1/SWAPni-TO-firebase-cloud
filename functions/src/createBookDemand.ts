@@ -1,9 +1,9 @@
 import * as admin from "firebase-admin";
 import * as functions from "firebase-functions";
 
-export const createBookOffer =
+export const createBookDemand =
 functions.region("europe-west3").runWith({enforceAppCheck: true})
-  .https.onCall((data, context) => {
+  .https.onCall(async (data, context) => {
     if (context.app == undefined) {
       throw new functions.https.HttpsError(
         "failed-precondition",
@@ -24,15 +24,26 @@ functions.region("europe-west3").runWith({enforceAppCheck: true})
         "bookId as a valid string.");
     }
 
-    const bookState = data?.bookOffer?.bookState;
-
-    const offerNotes = data?.bookOffer?.notes;
-
     const bookTitle = data?.bookTitle;
 
-    admin.firestore().collection("/bookOffers")
+    if (!(typeof bookTitle === "string") || bookTitle.length < 3 ||
+    bookTitle.length > 256) {
+      throw new functions.https.HttpsError("invalid-argument",
+        "The function must be called must be called with argument" +
+        "bookTitle as a valid string.");
+    }
+
+    const demands = await admin.firestore().collection("/bookDemands")
+      .where("userId", "==", context.auth.uid)
+      .where("bookId", "==", bookId).get();
+
+    if (!demands.empty) {
+      throw new functions.https.HttpsError("cancelled",
+        "No users to receive email.");
+    }
+
+    admin.firestore().collection("/bookDemands")
       .doc()
-      .create({bookId: bookId, bookTitle: bookTitle,
-        userId: context.auth.uid,
-        bookState: bookState, notes: offerNotes});
+      .create({bookId: bookId, userId: context.auth.uid,
+        bookTitle: bookTitle});
   });
