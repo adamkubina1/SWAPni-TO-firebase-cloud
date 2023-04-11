@@ -30,9 +30,11 @@ functions.region("europe-west3").runWith({enforceAppCheck: true})
 
     const bookTitle = data?.bookTitle;
 
+    const timestamp = admin.firestore.FieldValue.serverTimestamp();
+
     admin.firestore().collection("/bookOffers")
       .doc()
       .create({bookId: bookId, bookTitle: bookTitle,
         userId: context.auth.uid,
-        bookState: bookState, notes: offerNotes});
+        bookState: bookState, notes: offerNotes, timestamp: timestamp});
   });
