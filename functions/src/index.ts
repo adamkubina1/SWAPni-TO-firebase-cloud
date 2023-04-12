@@ -4,6 +4,9 @@ import * as admin from "firebase-admin";
 import * as functions from "firebase-functions";
 import {acceptExchangeOffer} from "./acceptExchangeOffer";
 import {cleanUpOnBookOfferDelete} from "./cleanUpOnBookOfferDelete";
+import {cleanUpOnChatDelete} from "./cleanUpOnChatDelete";
+import {cleanUpOnUserDelete} from "./cleanUpOnUserDelete";
+import {confirmExchange} from "./confirmExchange";
 import {createBookDemand} from "./createBookDemand";
 import {createBookOffer} from "./createBookOffer";
 import {createExchangeOffer} from "./createExchangeOffer";
@@ -22,5 +25,8 @@ export {
     updateUserReviewScore,
     createBookDemand,
     sendEmailOnCreateOffer,
+    confirmExchange,
+    cleanUpOnUserDelete,
+    cleanUpOnChatDelete,
 };
 

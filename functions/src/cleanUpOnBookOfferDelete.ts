@@ -17,12 +17,30 @@ functions.region("europe-west3").firestore
       .where("counterOfferId", "==", deletedDocId)
       .get();
 
+    const chats1 = await admin.firestore()
+      .collection("chats")
+      .where("exchangeOfferData.counterOfferId", "==", deletedDocId)
+      .get();
+
+    const chats2 = await admin.firestore()
+      .collection("chats")
+      .where("exchangeOfferData.bookOfferId", "==", deletedDocId)
+      .get();
+
     bookOffers.forEach((bookOffer) => {
       batch.delete(bookOffer.ref);
     });
 
     counterOffers.forEach((bookOffer) => {
       batch.delete(bookOffer.ref);
+    });
+
+    chats1.forEach((chat) => {
+      batch.delete(chat.ref);
+    });
+
+    chats2.forEach((chat) => {
+      batch.delete(chat.ref);
     });
 
     batch.commit();
