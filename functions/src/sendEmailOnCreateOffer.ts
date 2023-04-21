@@ -1,4 +1,5 @@
 import * as admin from "firebase-admin";
+import {UserRecord} from "firebase-admin/auth";
 import * as functions from "firebase-functions";
 
 export const sendEmailOnCreateOffer =
@@ -10,23 +11,34 @@ functions.region("europe-west3").firestore
       .where("bookId", "==", createdOfferData.bookId)
       .get();
 
-
-    const emailList: Array<string> = [];
-
-    // Foreach should not be used with async
-    for ( let i = 0; i < demandsToNotify.docs.length; i++) {
-      await admin.auth().getUser(demandsToNotify.docs[i].data().userId).then(
-        (notifiedUser) => {
-          if (notifiedUser.uid !== createdOfferData.userId) {
-            emailList.push(notifiedUser.email ? notifiedUser.email : "");
-          }
-        }
-      );
+    if (demandsToNotify.empty) {
+      return;
     }
 
+    const emailList: Array<string> = [];
+    const promises: Array<Promise<UserRecord>> = [];
+
+    demandsToNotify.docs.forEach((demand) => {
+      if (demand.data().userId) {
+        promises.push(new Promise(() =>
+          admin.auth().getUser(demand.data().userId)));
+      }
+    });
+
+    Promise.all(promises).then((usersToNotify) => {
+      usersToNotify.forEach((userToNotify) => {
+        if (createdOfferData.userId === userToNotify.uid &&
+            userToNotify?.email) {
+          emailList.push(userToNotify.email);
+        }
+      });
+    }).catch(() => {
+      throw new functions.https.HttpsError("internal",
+        "Authentification system read error.");
+    });
+
     if (emailList.length < 1) {
-      throw new functions.https.HttpsError("cancelled",
-        "No users to receive email.");
+      return;
     }
 
     admin.firestore().collection("/mail").doc()
