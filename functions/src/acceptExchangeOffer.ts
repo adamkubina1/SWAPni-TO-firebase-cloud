@@ -48,7 +48,7 @@ functions.region("europe-west3").runWith({enforceAppCheck: true})
     const chatPath = admin.firestore()
       .collection("/chats").doc();
 
-    batch.create(chatPath, {data: "test"});
+    batch.create(chatPath, {exchangeOfferData});
 
     batch.commit();
   });

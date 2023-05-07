@@ -5,39 +5,52 @@ import * as _ from "lodash";
 
 const MAX_BATCH_SIZE = 500;
 
-export const cleanUpOnBookOfferDelete =
-functions.region("europe-west3").firestore
-  .document("bookOffers/{docId}").onDelete(async (snap) => {
-    const deletedDocId = snap.id;
+export const cleanUpOnUserDelete =
+functions.region("europe-west3").auth.user()
+  .onDelete(async (user) => {
+    const userId = user.uid;
 
     const bookOffers = await admin.firestore()
-      .collection("exchangeOffers")
-      .where("bookOfferId", "==", deletedDocId)
+      .collection("bookOffers")
+      .where("userId", "==", userId)
       .get();
 
-    const counterOffers = await admin.firestore()
+    const bookDemands = await admin.firestore()
+      .collection("bookDemands")
+      .where("userId", "==", userId)
+      .get();
+
+    const exchangeOffers1 = await admin.firestore()
       .collection("exchangeOffers")
-      .where("counterOfferId", "==", deletedDocId)
+      .where("senderUserId", "==", userId)
+      .get();
+
+    const exchangeOffers2 = await admin.firestore()
+      .collection("exchangeOffers")
+      .where("receiverUserId", "==", userId)
       .get();
 
     const chats1 = await admin.firestore()
       .collection("chats")
-      .where("exchangeOfferData.counterOfferId", "==", deletedDocId)
+      .where("exchangeOfferData.receiverUserId", "==", userId)
       .get();
 
     const chats2 = await admin.firestore()
       .collection("chats")
-      .where("exchangeOfferData.bookOfferId", "==", deletedDocId)
+      .where("exchangeOfferData.senderUserId", "==", userId)
       .get();
 
-    if (bookOffers.empty && counterOffers.empty &&
-      chats1.empty && chats2.empty) {
-      return;
-    }
+    const reviews = await admin.firestore()
+      .collection("users/" + userId + "/userReviews")
+      .get();
 
     const batchPromises:Array<Promise<WriteResult[]>> = [];
-    const tmp = [bookOffers.docs, counterOffers.docs, chats1.docs, chats2.docs];
+    const tmp = [bookOffers.docs, bookDemands.docs,
+      exchangeOffers1.docs, exchangeOffers2.docs,
+      chats1.docs, chats2.docs, reviews.docs];
     const allDocsToDelete = tmp.flat();
+
+    if (allDocsToDelete.length < 1) return;
 
     const chunkedAllDocsToDelete = _.chunk(allDocsToDelete, MAX_BATCH_SIZE);
 
