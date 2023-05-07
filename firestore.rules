@@ -1,8 +1,95 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
+    function isSignedIn() {
+    	return request.auth.uid != null
+		}
+    function userFieldsAreValidTypes(docData) {
+     return docData.get('userName', '') is string &&
+          	docData.get('bio', '') is string;
+  	}
+    function userReviewFieldsAreValidTypes(docData) {
+     return docData.get('review', '') is string &&
+          	docData.get('stars', 1) is number &&
+            docData.get('timestamp', '') is timestamp;
+  	}
+    function messageFieldsAreValidTypes(docData) {
+     return docData.get('userId', '') is string &&
+          	docData.get('message', '') is string &&
+            docData.get('timestamp', '') is timestamp;
+  	}
+    
+
+		match /users/{userId} {
+   		allow delete: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSignedIn() && request.auth.uid == userId && 
+      									request.resource.data.diff(resource.data)
+                        .affectedKeys().hasOnly(['userName', 'bio']) &&
+                        userFieldsAreValidTypes(request.resource.data);
+      allow read;
+		}
+    
+    
+    
+    match /users/{userId}/userReviews/{userReview} {
+    	allow create: if isSignedIn() && request.auth.uid == userReview &&
+      								exists(/databases/$(database)/documents/users/$(userId)) &&
+                      request.resource.data.keys()
+                      .hasAll(['stars', 'review', 'timestamp']) &&
+                      userReviewFieldsAreValidTypes(request.resource.data);
+      allow update: if isSignedIn() && request.auth.uid == userReview &&
+      								exists(/databases/$(database)/documents/users/$(userId)) &&
+                      request.resource.data.diff(resource.data)
+                      .affectedKeys().hasOnly(['review', 'stars', 'timestamp']) &&
+                      userReviewFieldsAreValidTypes(request.resource.data);
+    	allow read;
+    }
+    
+    
+    match /bookDemands/{bookDemand} {
+    	allow read: if isSignedIn() && request.auth.uid == resource.data.userId;
+  		allow delete: if isSignedIn() && request.auth.uid == resource.data.userId;
+    }
+    
+    
+    match /bookOffers/{bookOfferId} {
+    	allow delete: if isSignedIn() && request.auth.uid == resource.data.userId; 
+      allow read;
+		}
+    
+    
+    match /exchangeOffers/{exchangeOfferId} {
+    	allow delete: if isSignedIn() && 
+      								(request.auth.uid == resource.data.senderUserId || 
+                      request.auth.uid == resource.data.receiverUserId);
+      allow read: if isSignedIn() && 
+      							(request.auth.uid == resource.data.senderUserId ||
+                    request.auth.uid == resource.data.receiverUserId);
+		}
+    
+    
+    match /chats/{chatId} {
+    	allow delete: if isSignedIn() && 
+      								(request.auth.uid == resource.data.exchangeOfferData.senderUserId ||
+                      request.auth.uid == resource.data.exchangeOfferData.receiverUserId);
+      allow read: if isSignedIn() && 
+      							(request.auth.uid == resource.data.exchangeOfferData.senderUserId ||
+                    request.auth.uid == resource.data.exchangeOfferData.receiverUserId);
+		}
+    
+    
+    match /chats/{chatId}/messages/{message} {
+      allow create: if isSignedIn() &&
+      								(request.auth.uid == get(/databases/$(database)/documents/chats/$(chatId)).data.exchangeOfferData.senderUserId ||
+                      request.auth.uid == get(/databases/$(database)/documents/chats/$(chatId)).data.exchangeOfferData.receiverUserId) &&
+                      request.resource.data.keys()
+                      .hasAll(['userId', 'message', 'timestamp']) &&
+                      request.resource.data.userId == request.auth.uid;
+    	allow read: if isSignedIn() &&
+      								(request.auth.uid == get(/databases/$(database)/documents/chats/$(chatId)).data.exchangeOfferData.senderUserId ||
+                      request.auth.uid == get(/databases/$(database)/documents/chats/$(chatId)).data.exchangeOfferData.receiverUserId);
     }
   }
+  	
+
 }

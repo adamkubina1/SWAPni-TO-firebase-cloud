@@ -1,11 +1,14 @@
 import * as admin from "firebase-admin";
+import {WriteResult} from "firebase-admin/firestore";
 import * as functions from "firebase-functions";
+import * as _ from "lodash";
+
+const MAX_BATCH_SIZE = 500;
 
 export const cleanUpOnBookOfferDelete =
 functions.region("europe-west3").firestore
   .document("bookOffers/{docId}").onDelete(async (snap) => {
     const deletedDocId = snap.id;
-    const batch = admin.firestore().batch();
 
     const bookOffers = await admin.firestore()
       .collection("exchangeOffers")
@@ -27,21 +30,32 @@ functions.region("europe-west3").firestore
       .where("exchangeOfferData.bookOfferId", "==", deletedDocId)
       .get();
 
-    bookOffers.forEach((bookOffer) => {
-      batch.delete(bookOffer.ref);
+    if (bookOffers.empty && counterOffers.empty &&
+      chats1.empty && chats2.empty) {
+      return;
+    }
+
+    const batchPromises:Array<Promise<WriteResult[]>> = [];
+    const tmp = [bookOffers.docs, counterOffers.docs, chats1.docs, chats2.docs];
+    const allDocsToDelete = tmp.flat();
+
+    const chunkedAllDocsToDelete = _.chunk(allDocsToDelete, MAX_BATCH_SIZE);
+
+    chunkedAllDocsToDelete.forEach((chunk) => {
+      const batch = admin.firestore().batch();
+
+      chunk.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+      batchPromises.push(new Promise(() => batch.commit()));
     });
 
-    counterOffers.forEach((bookOffer) => {
-      batch.delete(bookOffer.ref);
-    });
+    if (batchPromises.length < 1) return;
 
-    chats1.forEach((chat) => {
-      batch.delete(chat.ref);
+    Promise.all(
+      batchPromises
+    ).catch(() => {
+      throw new
+      functions.https.HttpsError("internal", "Batch delete operation failed.");
     });
-
-    chats2.forEach((chat) => {
-      batch.delete(chat.ref);
-    });
-
-    batch.commit();
   });

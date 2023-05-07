@@ -1,12 +1,14 @@
 import * as admin from "firebase-admin";
+import {WriteResult} from "firebase-admin/firestore";
 import * as functions from "firebase-functions";
+import * as _ from "lodash";
+
+const MAX_BATCH_SIZE = 500;
 
 export const cleanUpOnUserDelete =
 functions.region("europe-west3").auth.user()
   .onDelete(async (user) => {
     const userId = user.uid;
-
-    const batch = admin.firestore().batch();
 
     const bookOffers = await admin.firestore()
       .collection("bookOffers")
@@ -42,34 +44,31 @@ functions.region("europe-west3").auth.user()
       .collection("users/" + userId + "/userReviews")
       .get();
 
-    bookOffers.forEach((bookOffer) => {
-      batch.delete(bookOffer.ref);
+    const batchPromises:Array<Promise<WriteResult[]>> = [];
+    const tmp = [bookOffers.docs, bookDemands.docs,
+      exchangeOffers1.docs, exchangeOffers2.docs,
+      chats1.docs, chats2.docs, reviews.docs];
+    const allDocsToDelete = tmp.flat();
+
+    if (allDocsToDelete.length < 1) return;
+
+    const chunkedAllDocsToDelete = _.chunk(allDocsToDelete, MAX_BATCH_SIZE);
+
+    chunkedAllDocsToDelete.forEach((chunk) => {
+      const batch = admin.firestore().batch();
+
+      chunk.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+      batchPromises.push(new Promise(() => batch.commit()));
     });
 
-    bookDemands.forEach((bookDemand) => {
-      batch.delete(bookDemand.ref);
+    if (batchPromises.length < 1) return;
+
+    Promise.all(
+      batchPromises
+    ).catch(() => {
+      throw new
+      functions.https.HttpsError("internal", "Batch delete operation failed.");
     });
-
-
-    exchangeOffers1.forEach((exchangeOffer) => {
-      batch.delete(exchangeOffer.ref);
-    });
-
-    exchangeOffers2.forEach((exchangeOffer) => {
-      batch.delete(exchangeOffer.ref);
-    });
-
-    chats1.forEach((chat) => {
-      batch.delete(chat.ref);
-    });
-
-    chats2.forEach((chat) => {
-      batch.delete(chat.ref);
-    });
-
-    reviews.forEach((review) => {
-      batch.delete(review.ref);
-    });
-
-    batch.commit();
   });
